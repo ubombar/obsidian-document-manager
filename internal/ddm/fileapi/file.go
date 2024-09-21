@@ -2,6 +2,7 @@ package fileapi
 
 import (
 	"errors"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -93,6 +94,8 @@ func (f *File) Exists() (bool, error) {
 // Creates the actual file. Returns true if new files are created.
 // If it already exists, returns false, or error.
 func (f *File) Create() (bool, error) {
+	// Check the extension, if it is a text or markdown file set the matcher
+
 	// If there is an error or file exists then return false and the error
 	if ok, err := f.Exists(); err != nil || ok {
 		return false, err
@@ -130,24 +133,60 @@ func (f *File) SetPermissions(rwx int32) (bool, error) {
 }
 
 // Returns true if the file is a markdown file.
-func (f *File) IsMarkdown() bool {
-	_, ok := f.fileInterface.(*Markdown)
+func (f *File) IsTextFile() bool {
+	_, ok := f.fileInterface.(*TextFile)
 	return ok
 }
 
 // Returns false if it is already set to markdown
-func (f *File) SetAsMarkdown() bool {
+func (f *File) SetAsTextFile() bool {
 	if f.fileInterface != nil {
 		return false
 	}
 
-	f.fileInterface = NewMarkdown(f)
+	f.fileInterface = NewTextFile(f)
 	return true
 }
 
-func (f *File) Markdown() *Markdown {
-	if m, ok := f.fileInterface.(*Markdown); ok {
+func (f *File) TextMatcher() *TextFile {
+	if m, ok := f.fileInterface.(*TextFile); ok {
 		return m
 	}
 	return nil
+}
+
+// Do not forget to close the reader. If the file does not exists returns
+// an error
+func (f *File) Reader() (io.Reader, error) {
+	if exists, err := f.Exists(); err != nil {
+		return nil, err
+	} else if !exists {
+		return nil, errors.New("file does not exist")
+	}
+
+	if file, err := os.Open(f.absPath); err == nil {
+		return file, err
+	} else {
+		return nil, err
+	}
+}
+
+func (f *File) ReadAll() ([]byte, error) {
+	if reader, err := f.Reader(); err != nil {
+		return nil, err
+	} else {
+		// Try to close the returned reader if it implements the io.Closer interface.
+		if closer, ok := reader.(io.Closer); ok {
+			defer closer.Close()
+		}
+
+		// Read all the data
+		data, err := io.ReadAll(reader)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return data, nil
+	}
 }
