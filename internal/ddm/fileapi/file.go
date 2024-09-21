@@ -148,7 +148,7 @@ func (f *File) SetAsTextFile() bool {
 	return true
 }
 
-func (f *File) TextMatcher() *TextFile {
+func (f *File) TextFile() *TextFile {
 	if m, ok := f.fileInterface.(*TextFile); ok {
 		return m
 	}
