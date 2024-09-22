@@ -3,8 +3,6 @@ package odm
 import (
 	"errors"
 	"regexp"
-
-	"github.com/ubombar/obsidian-document-manager/internal/ddm/engine"
 )
 
 type Set struct {
@@ -28,27 +26,28 @@ func NewEmptySet() (*Set, error) {
 	}, nil
 }
 
-func (m *Set) Match(regex *regexp.Regexp) (*[]engine.Match, error) {
+func (m *Set) Match(regex *regexp.Regexp) (*[]Match, error) {
 	matchesInt := regex.FindAllIndex(*m.data, -1)
-	return engine.FromIntArray(&matchesInt)
+	return FromIntArray(&matchesInt)
 }
 
 // Assumed the matches are mutually exclusive. This can be done very efifciently using go routings
 // But YOLO
-func (m *Set) Replace(mm *[]engine.Match, f engine.MatchMapper) (bool, error) {
+func (m *Set) Replace(mm *[]Match, f IndexMatchMapper) (bool, error) {
 	return m.perform(mm, f, mode_replace)
 }
 
-func (m *Set) InsertBefore(mm *[]engine.Match, f engine.MatchMapper) (bool, error) {
+func (m *Set) InsertBefore(mm *[]Match, f IndexMatchMapper) (bool, error) {
 	return m.perform(mm, f, mode_insert_before)
 }
 
-func (m *Set) InsertAfter(mm *[]engine.Match, f engine.MatchMapper) (bool, error) {
+func (m *Set) InsertAfter(mm *[]Match, f IndexMatchMapper) (bool, error) {
 	return m.perform(mm, f, mode_insert_after)
 }
 
-func (m *Set) Remove(mm *[]engine.Match) (bool, error) {
-	return m.perform(mm, func(md engine.Match, buffer *[]byte) ([]byte, bool) { return []byte(""), true }, mode_remove)
+func (m *Set) Remove(mm *[]Match) (bool, error) {
+	// Here the function can be nil since it is not called.
+	return m.perform(mm, nil, mode_remove)
 }
 
 func (m *Set) GetBuffer() Data {
@@ -62,7 +61,7 @@ const (
 	mode_remove        int = 4
 )
 
-func (m *Set) perform(mm *[]engine.Match, f engine.MatchMapper, mode int) (bool, error) {
+func (m *Set) perform(mm *[]Match, f IndexMatchMapper, mode int) (bool, error) {
 	// Check if there are matches currently
 	if m == nil {
 		return false, errors.New("given matches array is nil")
