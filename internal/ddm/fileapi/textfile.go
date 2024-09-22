@@ -2,7 +2,6 @@ package fileapi
 
 import (
 	"errors"
-	"fmt"
 	"regexp"
 
 	"github.com/ubombar/obsidian-document-manager/internal/ddm/engine"
@@ -158,12 +157,11 @@ func (m *TextFile) perform(mm *[]engine.Match, f engine.MatchMapper, mode int) (
 
 		// if the mode is remove then simpy skip over the pointer.
 		// Then update the pointer
-		pointer = match.End + offset
+		pointer = match.End
 	}
 
 	// copy the remeaning part
 	modBuffer = append(modBuffer, (*m.buffer)[pointer:]...)
-	fmt.Printf("modbuffer:\n%v\n", string(modBuffer))
 
 	m.buffer = &modBuffer
 
