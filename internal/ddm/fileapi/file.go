@@ -140,11 +140,16 @@ func (f *File) IsTextFile() bool {
 
 // Returns false if it is already set to markdown
 func (f *File) SetAsTextFile() bool {
+	var err error
+
 	if f.fileInterface != nil {
 		return false
 	}
 
-	f.fileInterface = NewTextFile(f)
+	if f.fileInterface, err = NewTextFile(f); err != nil {
+		return false
+	}
+
 	return true
 }
 
@@ -171,7 +176,7 @@ func (f *File) Reader() (io.Reader, error) {
 	}
 }
 
-func (f *File) ReadAll() ([]byte, error) {
+func (f *File) ReadAll() (*[]byte, error) {
 	if reader, err := f.Reader(); err != nil {
 		return nil, err
 	} else {
@@ -187,6 +192,22 @@ func (f *File) ReadAll() ([]byte, error) {
 			return nil, err
 		}
 
-		return data, nil
+		return &data, nil
 	}
+}
+
+func (f *File) WriteAll(data *[]byte) error {
+	file, err := os.OpenFile(f.absPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, fs.FileMode(DEFAULT_FILE_PERM))
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	// Write byte array to file
+	_, err = file.Write(*data)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
