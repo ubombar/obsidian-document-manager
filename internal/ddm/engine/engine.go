@@ -2,6 +2,7 @@ package engine
 
 import (
 	"errors"
+	"fmt"
 	"regexp"
 )
 
@@ -43,7 +44,16 @@ func FromIntArray(a *[][]int) (*[]Match, error) {
 	return &matches, nil
 }
 
+// Gets the word as string.
+func (md Match) Match(buffer *[]byte) string {
+	return string((*buffer)[md.Begin:md.End])
+}
+
 // The matcher interface
 type Matchable interface {
 	Match(regex *regexp.Regexp) (*[]Match, error)
+}
+
+func Returnf(format string, obj ...any) ([]byte, bool) {
+	return []byte(fmt.Sprintf(format, obj...)), true
 }
