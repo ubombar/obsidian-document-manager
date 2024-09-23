@@ -132,34 +132,6 @@ func (f *File) SetPermissions(rwx int32) (bool, error) {
 	}
 }
 
-// Returns true if the file is a markdown file.
-func (f *File) IsTextFile() bool {
-	_, ok := f.fileInterface.(*TextFile)
-	return ok
-}
-
-// Returns false if it is already set to markdown
-func (f *File) SetAsTextFile() bool {
-	var err error
-
-	if f.fileInterface != nil {
-		return false
-	}
-
-	if f.fileInterface, err = NewTextFile(f); err != nil {
-		return false
-	}
-
-	return true
-}
-
-func (f *File) TextFile() *TextFile {
-	if m, ok := f.fileInterface.(*TextFile); ok {
-		return m
-	}
-	return nil
-}
-
 // Do not forget to close the reader. If the file does not exists returns
 // an error
 func (f *File) Reader() (io.Reader, error) {
