@@ -2,6 +2,7 @@ package fileapi
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -12,42 +13,57 @@ import (
 const DEFAULT_FILE_PERM int32 = 0644
 
 type File struct {
+	// Standard library file interface.
+	io.ReadWriteCloser
+
+	// This file is also implements stringer interface.
+	fmt.Stringer
+
+	// Absolute file path.
 	absPath string
 
-	// This property is used to manipulate the contents. This can be markdown, pdf etc.
-	fileInterface interface{}
+	// Actual std file object
+	file *os.File
 }
 
 // Create a new file. Any path can be given as the path, it will be converted to the abs
 // path. So the current working directory of the program must not be changed Otherwise, it
 // can lead to undesired behavior.
 func NewFile(path string) (*File, error) {
+	absPath, err := cleanedAbsPath(path)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &File{
+		absPath: absPath,
+		file:    nil, // default values are nil since we don't know if this file exists.
+	}, nil
+}
+
+func cleanedAbsPath(path string) (string, error) {
 	// At this point the cleanedPath is not guarenteed to be abs path, so join with pwd.
 	cleanedPath := filepath.Clean(strings.TrimLeft(path, " "))
 
 	// A file cannot end with / so die.
 	if strings.HasSuffix(cleanedPath, "/") {
-		return nil, errors.New("a file cannot end with suffix '/'")
+		return "", errors.New("a file cannot end with suffix '/'")
 	}
 
 	// If it is an absolute path.
 	if strings.HasPrefix(cleanedPath, "/") {
-		return &File{
-			absPath: cleanedPath,
-		}, nil
+		return cleanedPath, nil
 	}
 
 	// Join with pwd, so the file would be holding the abs path.
 	if pwd, err := os.Getwd(); err == nil {
 		cleanedAbsPath := filepath.Join(pwd, cleanedPath)
 
-		return &File{
-			absPath: cleanedAbsPath,
-		}, nil
+		return cleanedAbsPath, nil
 	} else {
-		return nil, err
+		return "", err
 	}
-
 }
 
 // Get the base name including the extension.
@@ -80,7 +96,7 @@ func (f *File) String() string {
 	return f.absPath
 }
 
-// Check if the file exists
+// Check if the file exists on the disk
 func (f *File) Exists() (bool, error) {
 	if _, err := os.Stat(f.absPath); err == nil {
 		return true, nil
@@ -91,27 +107,18 @@ func (f *File) Exists() (bool, error) {
 	}
 }
 
-// Creates the actual file. Returns true if new files are created.
-// If it already exists, returns false, or error.
-func (f *File) Create() (bool, error) {
-	// Check the extension, if it is a text or markdown file set the matcher
+// This assumes the file is already open.
+func (f *File) IsOpen() bool {
+	return f.file != nil
+}
 
-	// If there is an error or file exists then return false and the error
-	if ok, err := f.Exists(); err != nil || ok {
-		return false, err
-	}
-
-	// If not then attempt to create the file.
-	if fi, err := os.Create(f.absPath); err == nil {
-		defer fi.Close()
-		if err = fi.Chmod(fs.FileMode(DEFAULT_FILE_PERM)); err != nil {
-			return false, err
-		}
-		return true, nil
-	} else if errors.Is(err, os.ErrExist) {
-		return false, nil
+// Opens the actual file, or creates it if not exist
+func (f *File) Open() error {
+	if file, err := os.OpenFile(f.absPath, os.O_RDWR|os.O_CREATE, fs.FileMode(DEFAULT_FILE_PERM)); err == nil {
+		f.file = file
+		return nil
 	} else {
-		return false, err
+		return err
 	}
 }
 
@@ -132,54 +139,31 @@ func (f *File) SetPermissions(rwx int32) (bool, error) {
 	}
 }
 
-// Do not forget to close the reader. If the file does not exists returns
-// an error
-func (f *File) Reader() (io.Reader, error) {
-	if exists, err := f.Exists(); err != nil {
-		return nil, err
-	} else if !exists {
-		return nil, errors.New("file does not exist")
-	}
-
-	if file, err := os.Open(f.absPath); err == nil {
-		return file, err
+func (f *File) Close() error {
+	if f.IsOpen() {
+		return errors.New("file is not opened")
 	} else {
-		return nil, err
-	}
-}
-
-func (f *File) ReadAll() (*[]byte, error) {
-	if reader, err := f.Reader(); err != nil {
-		return nil, err
-	} else {
-		// Try to close the returned reader if it implements the io.Closer interface.
-		if closer, ok := reader.(io.Closer); ok {
-			defer closer.Close()
+		if err := f.file.Close(); err != nil {
+			return err
 		}
-
-		// Read all the data
-		data, err := io.ReadAll(reader)
-
-		if err != nil {
-			return nil, err
-		}
-
-		return &data, nil
 	}
-}
-
-func (f *File) WriteAll(data *[]byte) error {
-	file, err := os.OpenFile(f.absPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, fs.FileMode(DEFAULT_FILE_PERM))
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	// Write byte array to file
-	_, err = file.Write(*data)
-	if err != nil {
-		return err
-	}
-
+	f.file = nil
 	return nil
+}
+
+// If file doesn't exist, then read empty bytes
+func (f *File) Read(p []byte) (n int, err error) {
+	if !f.IsOpen() {
+		return 0, errors.New("file is not open")
+	}
+
+	return f.file.Read(p)
+}
+
+func (f *File) Write(p []byte) (n int, err error) {
+	if !f.IsOpen() {
+		return 0, errors.New("file is not open")
+	}
+
+	return f.file.Write(p)
 }

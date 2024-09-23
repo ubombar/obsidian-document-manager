@@ -2,6 +2,7 @@ package odm
 
 import (
 	"errors"
+	"io"
 	"regexp"
 )
 
@@ -33,8 +34,19 @@ func NewEmptySet() Set {
 	}
 }
 
+func NewFromReader(reader io.Reader) (Set, error) {
+	if data, err := io.ReadAll(reader); err != nil {
+		return nil, err
+	} else {
+		return &set{
+			data:    &data,
+			version: 0,
+		}, nil
+	}
+}
+
 func (m *set) CompiledMatch(regex string) (*[]Match, error) {
-	if regex, err := regexp.Compile(regex); err != nil {
+	if regex, err := regexp.Compile(regex); err == nil {
 		return m.Match(regex)
 	} else {
 		return nil, err
@@ -143,7 +155,11 @@ func (m *set) perform(mm *[]Match, f SetActionCallback, mode int) (bool, error) 
 	// copy the remeaning part
 	modBuffer = append(modBuffer, (*m.data)[pointer:]...)
 
+	// Set the pointer
 	m.data = &modBuffer
+
+	// Bump version
+	m.version += 1
 
 	return true, nil
 }
