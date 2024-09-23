@@ -5,12 +5,19 @@ import (
 	"regexp"
 )
 
-type Set struct {
+type Set interface {
 	// Text file implements Modifiable
-	IndexModifiable
+	SetModifier
 
 	// Text file implements Matchable
-	IndexMatchable
+	SetMatchable
+
+	Data() Data
+}
+
+type set struct {
+	// Set is a set.
+	Set
 
 	// This represents the buffer, the data.
 	data Data
@@ -19,38 +26,46 @@ type Set struct {
 	version int
 }
 
-func NewEmptySet() (*Set, error) {
-	return &Set{
+func NewEmptySet() Set {
+	return &set{
 		data:    new([]byte),
 		version: 0,
-	}, nil
+	}
 }
 
-func (m *Set) Match(regex *regexp.Regexp) (*[]Match, error) {
+func (m *set) CompiledMatch(regex string) (*[]Match, error) {
+	if regex, err := regexp.Compile(regex); err != nil {
+		return m.Match(regex)
+	} else {
+		return nil, err
+	}
+}
+
+func (m *set) Match(regex *regexp.Regexp) (*[]Match, error) {
 	matchesInt := regex.FindAllIndex(*m.data, -1)
 	return FromIntArray(&matchesInt)
 }
 
 // Assumed the matches are mutually exclusive. This can be done very efifciently using go routings
 // But YOLO
-func (m *Set) Replace(mm *[]Match, f IndexMatchMapper) (bool, error) {
+func (m *set) Replace(mm *[]Match, f SetActionCallback) (bool, error) {
 	return m.perform(mm, f, mode_replace)
 }
 
-func (m *Set) InsertBefore(mm *[]Match, f IndexMatchMapper) (bool, error) {
+func (m *set) InsertBefore(mm *[]Match, f SetActionCallback) (bool, error) {
 	return m.perform(mm, f, mode_insert_before)
 }
 
-func (m *Set) InsertAfter(mm *[]Match, f IndexMatchMapper) (bool, error) {
+func (m *set) InsertAfter(mm *[]Match, f SetActionCallback) (bool, error) {
 	return m.perform(mm, f, mode_insert_after)
 }
 
-func (m *Set) Remove(mm *[]Match) (bool, error) {
+func (m *set) Remove(mm *[]Match) (bool, error) {
 	// Here the function can be nil since it is not called.
 	return m.perform(mm, nil, mode_remove)
 }
 
-func (m *Set) GetBuffer() Data {
+func (m *set) Data() Data {
 	return m.data
 }
 
@@ -61,7 +76,7 @@ const (
 	mode_remove        int = 4
 )
 
-func (m *Set) perform(mm *[]Match, f IndexMatchMapper, mode int) (bool, error) {
+func (m *set) perform(mm *[]Match, f SetActionCallback, mode int) (bool, error) {
 	// Check if there are matches currently
 	if m == nil {
 		return false, errors.New("given matches array is nil")
