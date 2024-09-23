@@ -13,6 +13,7 @@ type Set interface {
 	// Text file implements Matchable
 	SetMatchable
 
+	// Gets the data
 	Data() Data
 }
 
