@@ -34,6 +34,13 @@ func NewEmptySet() Set {
 	}
 }
 
+func NewCloned(s Set) Set {
+	return &set{
+		data:    s.Data(),
+		version: 0,
+	}
+}
+
 func NewFromReader(reader io.Reader) (Set, error) {
 	if data, err := io.ReadAll(reader); err != nil {
 		return nil, err
@@ -79,6 +86,11 @@ func (m *set) Remove(mm *[]Match) (bool, error) {
 
 func (m *set) Data() Data {
 	return m.data
+}
+
+// Cloning causes the version to reset.
+func (m *set) Clone() Set {
+	return NewCloned(m)
 }
 
 const (
