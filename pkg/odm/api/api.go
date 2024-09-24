@@ -77,10 +77,37 @@ type SetAttirbuter interface {
 	IncrementVersion()
 }
 
-type GroupFilterCallback func() (bool, error)
+type GroupRemoveCallback func(a Set) (bool, error)
 
 type GroupFilterer interface {
-	Filter(regex *regexp.Regexp)
+	// Remove if the callback responds with true. In case of an error skip.
+	// Returns how many sets are filtered out.
+	Filter(f GroupRemoveCallback) (int, error)
+}
+
+type GroupMergeCallback func(a, b Set) (bool, error)
+
+type GroupMerger interface {
+	// Maps the cross product of sets, returns the new number of sets.
+	Merge(f GroupMergeCallback) (int, error)
+}
+
+type GroupAdder interface {
+	// Adds a new set to the group.
+	Add(s Set) (bool, error)
+}
+
+type Group interface {
+	// Text file implements Modifiable
+	GroupFilterer
+
+	// Text file implements Matchable
+	GroupMerger
+
+	// Implements Addable
+	GroupAdder
+
+	Sets() []Set
 }
 
 func FromIntArray(a *[][]int) (*[]Match, error) {
