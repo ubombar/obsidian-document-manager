@@ -13,6 +13,13 @@ type diskSetAttributes struct {
 	version int
 }
 
+func NewDiskSetAttributes(f *file.File) (api.SetAttirbuter, error) {
+	return &diskSetAttributes{
+		file:    f,
+		version: 0,
+	}, nil
+}
+
 // On a file based one, this returns the filepath.
 func (sa diskSetAttributes) Name() string {
 	return sa.file.String()
