@@ -13,7 +13,7 @@ type Data *[]byte
 // This is the map function, it takes a Match and the data segment. This function will
 // be invoken when writing down to the file.
 // Do not change the contents of the buffer.
-type SetActionCallback func(md Match, buffer *[]byte) ([]byte, bool)
+type SetActionCallback func(md Match, buffer Data) ([]byte, bool)
 
 // Performs a modification action.
 type SetModifier interface {
@@ -99,7 +99,7 @@ func FromIntArray(a *[][]int) (*[]Match, error) {
 }
 
 // Gets the word as string.
-func (md Match) Segment(buffer *[]byte) string {
+func (md Match) Segment(buffer Data) string {
 	return string((*buffer)[md.Begin:md.End])
 }
 
