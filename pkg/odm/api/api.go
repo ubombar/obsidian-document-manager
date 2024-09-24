@@ -1,9 +1,10 @@
-package odm
+package api
 
 import (
 	"errors"
 	"fmt"
 	"regexp"
+	"time"
 )
 
 // This is the main type of data. it is a byte array pointer.
@@ -30,7 +31,7 @@ type SetModifier interface {
 }
 
 // The matcher interface
-type SetMatchable interface {
+type SetMatcher interface {
 	Match(regex *regexp.Regexp) (*[]Match, error)
 
 	CompiledMatch(regex string) (*[]Match, error)
@@ -39,6 +40,47 @@ type SetMatchable interface {
 type Match struct {
 	Begin int
 	End   int
+}
+
+// The set interface
+type Set interface {
+	// Text file implements Modifiable
+	SetModifier
+
+	// Text file implements Matchable
+	SetMatcher
+
+	// Gets the data
+	Data() Data
+
+	// Get attributes
+	Attributes() SetAttirbuter
+}
+
+type SetAttirbuter interface {
+	// On a file based one, this returns the filepath.
+	Name() string
+
+	// Returns the creation timestamp
+	Created() (time.Time, error)
+
+	// Returns the updated timestamp.
+	Updated() (time.Time, error)
+
+	// Set the latest updated time.
+	Update(t time.Time) error
+
+	// Returns the version.
+	Version() int
+
+	// Increment the version
+	IncrementVersion()
+}
+
+type GroupFilterCallback func() (bool, error)
+
+type GroupFilterer interface {
+	Filter(regex *regexp.Regexp)
 }
 
 func FromIntArray(a *[][]int) (*[]Match, error) {

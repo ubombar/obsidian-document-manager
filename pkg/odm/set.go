@@ -4,56 +4,47 @@ import (
 	"errors"
 	"io"
 	"regexp"
+	"time"
+
+	"github.com/ubombar/obsidian-document-manager/pkg/odm/api"
 )
-
-type Set interface {
-	// Text file implements Modifiable
-	SetModifier
-
-	// Text file implements Matchable
-	SetMatchable
-
-	// Gets the data
-	Data() Data
-}
 
 type set struct {
 	// Set is a set.
-	Set
+	api.Set
+
+	// This is used to receive the set attributes.
+	attributes api.SetAttirbuter
 
 	// This represents the buffer, the data.
-	data Data
-
-	// This is the version of the buffer.
-	version int
+	data api.Data
 }
 
-func NewEmptySet() Set {
+func NewEmptySet() api.Set {
 	return &set{
-		data:    new([]byte),
-		version: 0,
+		data:       new([]byte),
+		attributes: nil,
 	}
 }
 
-func NewCloned(s Set) Set {
+func NewCloned(s api.Set) api.Set {
 	return &set{
-		data:    s.Data(),
-		version: 0,
+		data:       s.Data(),
+		attributes: s.Attributes(),
 	}
 }
 
-func NewFromReader(reader io.Reader) (Set, error) {
+func NewFromReader(reader io.Reader) (api.Set, error) {
 	if data, err := io.ReadAll(reader); err != nil {
 		return nil, err
 	} else {
 		return &set{
-			data:    &data,
-			version: 0,
+			data: &data,
 		}, nil
 	}
 }
 
-func (m *set) CompiledMatch(regex string) (*[]Match, error) {
+func (m *set) CompiledMatch(regex string) (*[]api.Match, error) {
 	if regex, err := regexp.Compile(regex); err == nil {
 		return m.Match(regex)
 	} else {
@@ -61,36 +52,36 @@ func (m *set) CompiledMatch(regex string) (*[]Match, error) {
 	}
 }
 
-func (m *set) Match(regex *regexp.Regexp) (*[]Match, error) {
+func (m *set) Match(regex *regexp.Regexp) (*[]api.Match, error) {
 	matchesInt := regex.FindAllIndex(*m.data, -1)
-	return FromIntArray(&matchesInt)
+	return api.FromIntArray(&matchesInt)
 }
 
 // Assumed the matches are mutually exclusive. This can be done very efifciently using go routings
 // But YOLO
-func (m *set) Replace(mm *[]Match, f SetActionCallback) (bool, error) {
+func (m *set) Replace(mm *[]api.Match, f api.SetActionCallback) (bool, error) {
 	return m.perform(mm, f, mode_replace)
 }
 
-func (m *set) InsertBefore(mm *[]Match, f SetActionCallback) (bool, error) {
+func (m *set) InsertBefore(mm *[]api.Match, f api.SetActionCallback) (bool, error) {
 	return m.perform(mm, f, mode_insert_before)
 }
 
-func (m *set) InsertAfter(mm *[]Match, f SetActionCallback) (bool, error) {
+func (m *set) InsertAfter(mm *[]api.Match, f api.SetActionCallback) (bool, error) {
 	return m.perform(mm, f, mode_insert_after)
 }
 
-func (m *set) Remove(mm *[]Match) (bool, error) {
+func (m *set) Remove(mm *[]api.Match) (bool, error) {
 	// Here the function can be nil since it is not called.
 	return m.perform(mm, nil, mode_remove)
 }
 
-func (m *set) Data() Data {
+func (m *set) Data() api.Data {
 	return m.data
 }
 
 // Cloning causes the version to reset.
-func (m *set) Clone() Set {
+func (m *set) Clone() api.Set {
 	return NewCloned(m)
 }
 
@@ -101,7 +92,7 @@ const (
 	mode_remove        int = 4
 )
 
-func (m *set) perform(mm *[]Match, f SetActionCallback, mode int) (bool, error) {
+func (m *set) perform(mm *[]api.Match, f api.SetActionCallback, mode int) (bool, error) {
 	// Check if there are matches currently
 	if m == nil {
 		return false, errors.New("given matches array is nil")
@@ -172,7 +163,8 @@ func (m *set) perform(mm *[]Match, f SetActionCallback, mode int) (bool, error) 
 	m.data = &modBuffer
 
 	// Bump version
-	m.version += 1
+	m.attributes.IncrementVersion()
+	m.attributes.Update(time.Now())
 
 	return true, nil
 }

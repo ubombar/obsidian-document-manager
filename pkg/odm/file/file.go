@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 const DEFAULT_FILE_PERM int32 = 0644
@@ -166,4 +167,16 @@ func (f *File) Write(p []byte) (n int, err error) {
 	}
 
 	return f.file.Write(p)
+}
+
+func (f *File) Created() (time.Time, error) {
+	return time.Time{}, nil
+}
+
+func (f *File) Updated() (time.Time, error) {
+	return time.Time{}, nil
+}
+
+func (f *File) UpdateTimestamp(t time.Time) error {
+	return nil
 }

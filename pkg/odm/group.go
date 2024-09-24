@@ -1,13 +1,15 @@
 package odm
 
+import "github.com/ubombar/obsidian-document-manager/pkg/odm/api"
+
 type Group interface {
 	// Text file implements Modifiable
-	GroupFilterer
+	api.GroupFilterer
 
 	// Text file implements Matchable
-	SetMatchable
+	api.SetMatcher
 
-	Data() Data
+	Data() api.Data
 }
 
 type group struct {
@@ -15,7 +17,7 @@ type group struct {
 	Group
 
 	// The collection
-	collection map[string]Set
+	collection map[string]api.Set
 
 	// This is the version of the buffer.
 	version int
@@ -23,7 +25,7 @@ type group struct {
 
 func NewEmptyGroup() Group {
 	return &group{
-		collection: make(map[string]Set),
+		collection: make(map[string]api.Set),
 		version:    0,
 	}
 }
