@@ -7,6 +7,9 @@ import (
 	"time"
 
 	"github.com/ubombar/obsidian-document-manager/pkg/odm/api"
+	"github.com/ubombar/obsidian-document-manager/pkg/odm/attributes/disk"
+	"github.com/ubombar/obsidian-document-manager/pkg/odm/attributes/inmemory"
+	"github.com/ubombar/obsidian-document-manager/pkg/odm/file"
 )
 
 type set struct {
@@ -23,24 +26,63 @@ type set struct {
 func NewEmptySet() api.Set {
 	return &set{
 		data:       new([]byte),
-		attributes: nil,
+		attributes: inmemory.NewInMemorySetAttriubtes(),
 	}
 }
 
-func NewCloned(s api.Set) api.Set {
+func NewClonedSet(s api.Set) api.Set {
 	return &set{
 		data:       s.Data(),
 		attributes: s.Attributes(),
 	}
 }
 
-func NewFromReader(reader io.Reader) (api.Set, error) {
+func NewSetFromReader(reader io.Reader) (api.Set, error) {
 	if data, err := io.ReadAll(reader); err != nil {
 		return nil, err
 	} else {
 		return &set{
-			data: &data,
+			data:       &data,
+			attributes: inmemory.NewInMemorySetAttriubtes(),
 		}, nil
+	}
+}
+
+func NewSetFromFile(file *file.File) (api.Set, error) {
+	if !file.IsOpen() {
+		file.Open()
+		defer file.Close()
+	}
+	if data, err := io.ReadAll(file); err != nil {
+		return nil, err
+	} else {
+		attrib, err := disk.NewDiskSetAttributes(file)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return &set{
+			data:       &data,
+			attributes: attrib,
+		}, nil
+	}
+}
+
+func NewSetFromFileOrEmpty(file *file.File) api.Set {
+	if data, err := io.ReadAll(file); err != nil {
+		return NewEmptySet()
+	} else {
+		attrib, err := disk.NewDiskSetAttributes(file)
+
+		if err != nil {
+			return NewEmptySet()
+		}
+
+		return &set{
+			data:       &data,
+			attributes: attrib,
+		}
 	}
 }
 
@@ -82,7 +124,7 @@ func (m *set) Data() api.Data {
 
 // Cloning causes the version to reset.
 func (m *set) Clone() api.Set {
-	return NewCloned(m)
+	return NewClonedSet(m)
 }
 
 const (
@@ -167,4 +209,8 @@ func (m *set) perform(mm *[]api.Match, f api.SetActionCallback, mode int) (bool,
 	m.attributes.Update(time.Now())
 
 	return true, nil
+}
+
+func (m *set) Attributes() api.SetAttirbuter {
+	return m.attributes
 }
