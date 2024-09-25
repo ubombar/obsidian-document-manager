@@ -97,6 +97,12 @@ type GroupAdder interface {
 	Add(s Set) (bool, error)
 }
 
+type GroupForEachCallback func(a Set) (Set, error)
+
+type GroupMapper interface {
+	ForEach(f GroupForEachCallback) error
+}
+
 type Group interface {
 	// Text file implements Modifiable
 	GroupFilterer
@@ -106,6 +112,9 @@ type Group interface {
 
 	// Implements Addable
 	GroupAdder
+
+	// Group for each function
+	GroupMapper
 
 	Sets() []Set
 }

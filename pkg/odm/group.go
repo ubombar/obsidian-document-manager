@@ -3,6 +3,7 @@ package odm
 import (
 	"bytes"
 	"errors"
+	"fmt"
 
 	"github.com/ubombar/obsidian-document-manager/pkg/odm/api"
 )
@@ -28,7 +29,7 @@ func NewEmptyGroup() api.Group {
 // If already exists, simply returns false, nil
 func (g *group) Add(s api.Set) (bool, error) {
 	// Check if the attribute
-	if s != nil && s.Attributes() != nil {
+	if s == nil || s.Attributes() == nil {
 		return false, errors.New("either s or s.Attributes is nil")
 	}
 	// If it already contains set, well return false
@@ -80,6 +81,8 @@ func (g *group) Merge(f api.GroupMergeCallback) (int, error) {
 			}
 			secondIndex += 1
 		}
+
+		fmt.Printf("(*mergedData): %v\n", (*mergedData))
 		mergedSet, err := NewSetFromReader(bytes.NewReader(*mergedData))
 
 		if err != nil {
@@ -107,4 +110,21 @@ func (g *group) Sets() []api.Set {
 	}
 
 	return set
+}
+
+func (g *group) ForEach(f api.GroupForEachCallback) error {
+	newCollection := make(map[string]api.Set)
+
+	for setName, set := range g.collection {
+		if newSet, err := f(set); err != nil {
+			return err
+		} else {
+			newCollection[setName] = newSet
+		}
+	}
+
+	// Set the group to use the new collection.
+	g.collection = newCollection
+
+	return nil
 }
